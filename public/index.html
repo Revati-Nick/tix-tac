@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vanishing XO</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --text:#e2e8f0; --muted:#94a3b8; --x:#38bdf8; --o:#f472b6; --win:#facc15; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+         background:var(--bg); color:var(--text); font-family:system-ui,sans-serif; }
+  .wrap { width:100%; max-width:380px; padding:16px; text-align:center; }
+  h1 { margin:0 0 4px; font-size:28px; }
+  .sub { color:var(--muted); font-size:14px; margin-bottom:20px; }
+  button, input { font:inherit; border-radius:10px; border:0; padding:12px 16px; }
+  button { background:#3b82f6; color:#fff; cursor:pointer; font-weight:600; }
+  button:hover { filter:brightness(1.1); }
+  input { background:var(--card); color:var(--text); text-transform:uppercase; text-align:center; letter-spacing:4px; width:120px; }
+  .row { display:flex; gap:8px; justify-content:center; margin-top:12px; }
+  #game { display:none; }
+  .status { font-size:18px; margin:10px 0; min-height:26px; }
+  .code { color:var(--muted); font-size:14px; }
+  .code b { color:var(--text); letter-spacing:3px; }
+  .board { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:16px 0; }
+  .cell { aspect-ratio:1; background:var(--card); border-radius:12px; font-size:clamp(44px,16vw,64px);
+          font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; user-select:none;
+          transition:opacity .2s, background .2s; }
+  .cell.X { color:var(--x); } .cell.O { color:var(--o); }
+  .cell.sel { outline:3px solid #fff; }
+  .cell.win { background:#422006; box-shadow:0 0 0 3px var(--win) inset; }
+  .cell.disabled { cursor:default; }
+  .err { color:#f87171; min-height:20px; margin-top:10px; font-size:14px; }
+  .hint { color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Vanishing XO</h1>
+  <div class="sub">Place 3 marks. After that, move any one of your marks to an empty cell each turn. First to get 3 in a row wins.</div>
+
+  <div id="lobby">
+    <button id="create">Create room</button>
+    <div class="row">
+      <input id="code" maxlength="4" placeholder="CODE">
+      <button id="join">Join</button>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div id="game">
+    <div class="code">Room code: <b id="roomCode"></b></div>
+    <div class="status" id="status"></div>
+    <div class="board" id="board"></div>
+    <div class="hint" id="hint"></div>
+    <div class="row"><button id="rematch" style="display:none">Play again</button></div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+const ws = new WebSocket(`${proto}://${location.host}`);
+let st = null, sel = null;
+
+const boardEl = $('board');
+for (let i = 0; i < 9; i++) {
+  const c = document.createElement('div');
+  c.className = 'cell'; c.dataset.i = i;
+  c.onclick = () => clickCell(i);
+  boardEl.appendChild(c);
+}
+
+$('create').onclick = () => ws.send(JSON.stringify({ type: 'create' }));
+$('join').onclick = () => ws.send(JSON.stringify({ type: 'join', code: $('code').value }));
+$('rematch').onclick = () => ws.send(JSON.stringify({ type: 'rematch' }));
+
+ws.onclose = () => { $('err').textContent = 'Disconnected from server. Refresh to reconnect.'; };
+ws.onmessage = (e) => {
+  const m = JSON.parse(e.data);
+  if (m.type === 'error') { $('err').textContent = m.message; return; }
+  if (m.type === 'state') { st = m; sel = null; render(); }
+};
+
+function myCount() { return st.board.filter(v => v === st.you).length; }
+function clickCell(i) {
+  if (!st || st.winner || st.turn !== st.you) return;
+  const v = st.board[i];
+  if (myCount() < 3) { if (!v) ws.send(JSON.stringify({ type: 'move', to: i })); return; }
+  if (v === st.you) { sel = (sel === i) ? null : i; return render(); }
+  if (!v && sel !== null) { ws.send(JSON.stringify({ type: 'move', from: sel, to: i })); sel = null; }
+}
+
+function render() {
+  $('lobby').style.display = 'none';
+  $('game').style.display = 'block';
+  $('roomCode').textContent = st.code;
+
+  const both = st.players.X && st.players.O;
+  let text;
+  if (!both) text = 'Waiting for opponent… share the room code';
+  else if (st.winner) text = st.winner === st.you ? '🎉 You win!' : '😢 You lose';
+  else text = st.turn === st.you ? `Your turn (${st.you})` : `Opponent's turn (${st.turn})`;
+  $('status').textContent = text;
+
+  [...boardEl.children].forEach((c, i) => {
+    const v = st.board[i];
+    c.textContent = v === 'O' ? '0' : (v || '');
+    c.className = 'cell' + (v ? ' ' + v : '');
+    if (sel === i && st.board[i] === st.you) c.classList.add('sel');
+    if (st.line && st.line.includes(i)) c.classList.add('win');
+    if (st.winner || !both || st.turn !== st.you) c.classList.add('disabled');
+  });
+
+  $('hint').textContent = (both && !st.winner && st.turn === st.you)
+    ? (myCount() < 3 ? 'Place a mark on an empty cell.' : (sel === null ? 'Tap one of your marks to move it.' : 'Now tap an empty cell.')) : '';
+  $('rematch').style.display = st.winner ? 'inline-block' : 'none';
+}
+</script>
+</body>
+</html>
