@@ -3,64 +3,94 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Vanishing XO</title>
+<title>Hearts &amp; Roses</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#0f172a; --card:#1e293b; --text:#e2e8f0; --muted:#94a3b8; --x:#38bdf8; --o:#f472b6; --win:#facc15; }
+  :root { --bg1:#3b0a24; --bg2:#7a1f4b; --card:rgba(255,255,255,.10); --card-h:rgba(255,255,255,.18);
+          --text:#ffeef4; --muted:#f7b6cd; --accent:#ff4d85; --gold:#ffd9a0; }
   * { box-sizing: border-box; }
-  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
-         background:var(--bg); color:var(--text); font-family:system-ui,sans-serif; }
-  .wrap { width:100%; max-width:380px; padding:16px; text-align:center; }
-  h1 { margin:0 0 4px; font-size:28px; }
-  .sub { color:var(--muted); font-size:14px; margin-bottom:20px; }
-  button, input { font:inherit; border-radius:10px; border:0; padding:12px 16px; }
-  button { background:#3b82f6; color:#fff; cursor:pointer; font-weight:600; }
-  button:hover { filter:brightness(1.1); }
-  input { background:var(--card); color:var(--text); text-transform:uppercase; text-align:center; letter-spacing:4px; width:120px; }
-  .row { display:flex; gap:8px; justify-content:center; margin-top:12px; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; overflow-x:hidden;
+         background:radial-gradient(circle at 30% 20%, var(--bg2), var(--bg1) 70%) fixed;
+         color:var(--text); font-family:'Quicksand',system-ui,sans-serif; }
+  .wrap { position:relative; z-index:1; width:100%; max-width:400px; padding:16px; text-align:center; }
+  h1 { margin:0 0 4px; font-family:'Great Vibes',cursive; font-weight:400; font-size:54px; color:var(--gold);
+       text-shadow:0 0 18px rgba(255,77,133,.6); }
+  .sub { color:var(--muted); font-size:14px; margin-bottom:22px; line-height:1.5; }
+  button, input { font:inherit; border-radius:999px; border:0; padding:12px 22px; }
+  button { background:linear-gradient(135deg,#ff6b9a,#e0245e); color:#fff; cursor:pointer; font-weight:700;
+           box-shadow:0 6px 18px rgba(224,36,94,.45); transition:transform .15s; }
+  button:hover { transform:translateY(-2px) scale(1.03); }
+  input { background:var(--card); color:var(--text); text-transform:uppercase; text-align:center; letter-spacing:5px;
+          width:130px; outline:1px solid rgba(255,182,205,.4); }
+  input::placeholder { color:var(--muted); letter-spacing:3px; }
+  .row { display:flex; gap:10px; justify-content:center; margin-top:14px; }
   #game { display:none; }
-  .status { font-size:18px; margin:10px 0; min-height:26px; }
+  .status { font-size:20px; margin:12px 0; min-height:28px; font-weight:700; }
   .code { color:var(--muted); font-size:14px; }
-  .code b { color:var(--text); letter-spacing:3px; }
-  .board { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:16px 0; }
-  .cell { aspect-ratio:1; background:var(--card); border-radius:12px; font-size:clamp(44px,16vw,64px);
-          font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; user-select:none;
-          transition:opacity .2s, background .2s; }
-  .cell.X { color:var(--x); } .cell.O { color:var(--o); }
-  .cell.sel { outline:3px solid #fff; }
-  .cell.win { background:#422006; box-shadow:0 0 0 3px var(--win) inset; }
+  .code b { color:var(--gold); letter-spacing:4px; }
+  .board { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:16px 0; }
+  .cell { aspect-ratio:1; background:var(--card); border-radius:22px; font-size:clamp(40px,14vw,58px);
+          display:flex; align-items:center; justify-content:center; cursor:pointer; user-select:none;
+          backdrop-filter:blur(4px); border:1px solid rgba(255,182,205,.25); transition:background .2s, transform .15s; }
+  .cell:not(.disabled):hover { background:var(--card-h); transform:scale(1.04); }
+  .cell.X span, .cell.O span { display:inline-block; animation:pop .35s ease-out; }
+  .cell.X span { filter:drop-shadow(0 0 8px rgba(255,77,133,.8)); }
+  .cell.O span { filter:drop-shadow(0 0 8px rgba(255,120,120,.7)); }
+  .cell.sel { outline:3px solid var(--gold); box-shadow:0 0 22px rgba(255,217,160,.6); }
+  .cell.win { background:rgba(255,217,160,.25); box-shadow:0 0 26px rgba(255,217,160,.8) inset; animation:beat .9s infinite; }
   .cell.disabled { cursor:default; }
-  .err { color:#f87171; min-height:20px; margin-top:10px; font-size:14px; }
-  .hint { color:var(--muted); font-size:13px; }
+  .err { color:#ffb3c7; min-height:20px; margin-top:10px; font-size:14px; }
+  .hint { color:var(--muted); font-size:13px; min-height:18px; }
+  @keyframes pop { 0% { transform:scale(0) rotate(-20deg); } 70% { transform:scale(1.25); } 100% { transform:scale(1); } }
+  @keyframes beat { 0%,100% { transform:scale(1); } 50% { transform:scale(1.07); } }
+  .float { position:fixed; bottom:-40px; z-index:0; pointer-events:none; opacity:.55; animation:rise linear infinite; }
+  @keyframes rise { to { transform:translateY(-115vh) rotate(25deg); opacity:0; } }
+  @media (prefers-reduced-motion: reduce) { .float, .cell span, .cell.win { animation:none; } }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Vanishing XO</h1>
-  <div class="sub">Place 3 marks. After that, move any one of your marks to an empty cell each turn. First to get 3 in a row wins.</div>
+  <h1>Hearts &amp; Roses</h1>
+  <div class="sub">Two hearts, three each. Once all are placed, move any one of yours to an empty spot every turn.
+    First to line up three wins the other's heart. 💞</div>
 
   <div id="lobby">
-    <button id="create">Create room</button>
+    <button id="create">💌 Create our room</button>
     <div class="row">
       <input id="code" maxlength="4" placeholder="CODE">
-      <button id="join">Join</button>
+      <button id="join">Join 💕</button>
     </div>
     <div class="err" id="err"></div>
   </div>
 
   <div id="game">
-    <div class="code">Room code: <b id="roomCode"></b></div>
+    <div class="code">Our room: <b id="roomCode"></b></div>
     <div class="status" id="status"></div>
     <div class="board" id="board"></div>
     <div class="hint" id="hint"></div>
-    <div class="row"><button id="rematch" style="display:none">Play again</button></div>
+    <div class="row"><button id="rematch" style="display:none">One more dance 💃</button></div>
   </div>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
+const SYMBOL = { X: '💖', O: '🌹' };
 const proto = location.protocol === 'https:' ? 'wss' : 'ws';
 const ws = new WebSocket(`${proto}://${location.host}`);
 let st = null, sel = null;
+
+// floating hearts backdrop
+for (let i = 0; i < 14; i++) {
+  const f = document.createElement('div');
+  f.className = 'float';
+  f.textContent = ['💗', '🌹', '💕', '✨'][i % 4];
+  f.style.left = Math.random() * 100 + 'vw';
+  f.style.fontSize = 16 + Math.random() * 26 + 'px';
+  f.style.animationDuration = 9 + Math.random() * 12 + 's';
+  f.style.animationDelay = -Math.random() * 20 + 's';
+  document.body.appendChild(f);
+}
 
 const boardEl = $('board');
 for (let i = 0; i < 9; i++) {
@@ -74,7 +104,7 @@ $('create').onclick = () => ws.send(JSON.stringify({ type: 'create' }));
 $('join').onclick = () => ws.send(JSON.stringify({ type: 'join', code: $('code').value }));
 $('rematch').onclick = () => ws.send(JSON.stringify({ type: 'rematch' }));
 
-ws.onclose = () => { $('err').textContent = 'Disconnected from server. Refresh to reconnect.'; };
+ws.onclose = () => { $('err').textContent = 'Connection lost 💔 Refresh to reconnect.'; };
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
   if (m.type === 'error') { $('err').textContent = m.message; return; }
@@ -97,14 +127,14 @@ function render() {
 
   const both = st.players.X && st.players.O;
   let text;
-  if (!both) text = 'Waiting for opponent… share the room code';
-  else if (st.winner) text = st.winner === st.you ? '🎉 You win!' : '😢 You lose';
-  else text = st.turn === st.you ? `Your turn (${st.you})` : `Opponent's turn (${st.turn})`;
+  if (!both) text = 'Waiting for your sweetheart… share the code 💌';
+  else if (st.winner) text = st.winner === st.you ? '💘 You stole their heart!' : '💔 They stole your heart…';
+  else text = st.turn === st.you ? `Your move, love ${SYMBOL[st.you]}` : `Waiting on your love ${SYMBOL[st.turn]}`;
   $('status').textContent = text;
 
   [...boardEl.children].forEach((c, i) => {
     const v = st.board[i];
-    c.textContent = v === 'O' ? '0' : (v || '');
+    c.innerHTML = v ? `<span>${SYMBOL[v]}</span>` : '';
     c.className = 'cell' + (v ? ' ' + v : '');
     if (sel === i && st.board[i] === st.you) c.classList.add('sel');
     if (st.line && st.line.includes(i)) c.classList.add('win');
@@ -112,7 +142,7 @@ function render() {
   });
 
   $('hint').textContent = (both && !st.winner && st.turn === st.you)
-    ? (myCount() < 3 ? 'Place a mark on an empty cell.' : (sel === null ? 'Tap one of your marks to move it.' : 'Now tap an empty cell.')) : '';
+    ? (myCount() < 3 ? 'Place your heart on an empty spot.' : (sel === null ? 'Tap one of yours to move it.' : 'Now tap an empty spot.')) : '';
   $('rematch').style.display = st.winner ? 'inline-block' : 'none';
 }
 </script>
